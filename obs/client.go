@@ -10,7 +10,6 @@
 // CONDITIONS OF ANY KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations under the License.
 
-//nolint:golint, unused
 package obs
 
 import (
@@ -31,7 +30,10 @@ type ObsClient struct {
 
 // New creates a new ObsClient instance.
 func New(ak, sk, endpoint string, configurers ...configurer) (*ObsClient, error) {
-	conf := &config{securityProvider: &securityProvider{ak: ak, sk: sk}, endpoint: endpoint}
+	conf := &config{endpoint: endpoint}
+	conf.securityProviders = make([]securityProvider, 0, 3)
+	conf.securityProviders = append(conf.securityProviders, NewBasicSecurityProvider(ak, sk, ""))
+
 	conf.maxRetryCount = -1
 	conf.maxRedirectCount = -1
 	for _, configurer := range configurers {
@@ -64,8 +66,27 @@ func New(ak, sk, endpoint string, configurers ...configurer) (*ObsClient, error)
 
 // Refresh refreshes ak, sk and securityToken for obsClient.
 func (obsClient ObsClient) Refresh(ak, sk, securityToken string) {
-	sp := &securityProvider{ak: strings.TrimSpace(ak), sk: strings.TrimSpace(sk), securityToken: strings.TrimSpace(securityToken)}
-	obsClient.conf.securityProvider = sp
+	for _, sp := range obsClient.conf.securityProviders {
+		if bsp, ok := sp.(*BasicSecurityProvider); ok {
+			bsp.refresh(strings.TrimSpace(ak), strings.TrimSpace(sk), strings.TrimSpace(securityToken))
+			break
+		}
+	}
+}
+
+func (obsClient ObsClient) getSecurity() securityHolder {
+	if obsClient.conf.securityProviders != nil {
+		for _, sp := range obsClient.conf.securityProviders {
+			if sp == nil {
+				continue
+			}
+			sh := sp.getSecurity()
+			if sh.ak != "" && sh.sk != "" {
+				return sh
+			}
+		}
+	}
+	return emptySecurityHolder
 }
 
 // Close closes ObsClient.

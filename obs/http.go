@@ -123,10 +123,10 @@ func (obsClient ObsClient) doAction(action, method, bucketName, objectKey string
 		if extensionHeader, ok := extension.(extensionHeaders); ok {
 			_err := extensionHeader(headers, obsClient.conf.signature == SignatureObs)
 			if _err != nil {
-				doLog(LEVEL_WARN, fmt.Sprintf("set header with error: %v", _err))
+				doLog(LEVEL_INFO, fmt.Sprintf("set header with error: %v", _err))
 			}
 		} else {
-			doLog(LEVEL_WARN, "Unsupported extensionOptions")
+			doLog(LEVEL_INFO, "Unsupported extensionOptions")
 		}
 	}
 
@@ -192,6 +192,14 @@ func (obsClient ObsClient) doHTTPPost(bucketName, objectKey string, params map[s
 	return obsClient.doHTTP(HTTP_POST, bucketName, objectKey, params, prepareHeaders(headers, true, obsClient.conf.signature == SignatureObs), data, repeatable)
 }
 
+func prepareAgentHeader(clientUserAgent string) string {
+	userAgent := USER_AGENT
+	if clientUserAgent != "" {
+		userAgent = clientUserAgent
+	}
+	return userAgent
+}
+
 func (obsClient ObsClient) doHTTPWithSignedURL(action, method string, signedURL string, actualSignedRequestHeaders http.Header, data io.Reader, output IBaseModel, xmlResult bool) (respError error) {
 	req, err := http.NewRequest(method, signedURL, data)
 	if err != nil {
@@ -240,7 +248,8 @@ func (obsClient ObsClient) doHTTPWithSignedURL(action, method string, signedURL 
 		delete(req.Header, HEADER_CONTENT_LENGTH)
 	}
 
-	req.Header[HEADER_USER_AGENT_CAMEL] = []string{USER_AGENT}
+	userAgent := prepareAgentHeader(obsClient.conf.userAgent)
+	req.Header[HEADER_USER_AGENT_CAMEL] = []string{userAgent}
 	start := GetCurrentTimestamp()
 	resp, err = obsClient.httpClient.Do(req)
 	if isInfoLogEnabled() {
@@ -381,7 +390,8 @@ func (obsClient ObsClient) doHTTP(method, bucketName, objectKey string, params m
 
 		lastRequest = req
 
-		req.Header[HEADER_USER_AGENT_CAMEL] = []string{USER_AGENT}
+		userAgent := prepareAgentHeader(obsClient.conf.userAgent)
+		req.Header[HEADER_USER_AGENT_CAMEL] = []string{userAgent}
 
 		if lastRequest != nil {
 			req.Host = lastRequest.Host

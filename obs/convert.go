@@ -10,7 +10,6 @@
 // CONDITIONS OF ANY KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations under the License.
 
-//nolint:golint, unused
 package obs
 
 import (
@@ -680,6 +679,11 @@ func ParseGetBucketMetadataOutput(output *GetBucketMetadataOutput) {
 	if ret, ok := output.ResponseHeaders[HEADER_EPID_HEADERS]; ok {
 		output.Epid = ret[0]
 	}
+	if ret, ok := output.ResponseHeaders[headerFSFileInterface]; ok {
+		output.FSStatus = parseStringToFSStatusType(ret[0])
+	} else {
+		output.FSStatus = FSStatusDisabled
+	}
 }
 
 func parseContentHeader(output *SetObjectMetadataOutput) {
@@ -876,5 +880,17 @@ func convertFetchJobToJSON(input SetBucketFetchJobInput) (data string, err error
 		return "", err
 	}
 	data = string(json)
+	return
+}
+
+func parseStringToFSStatusType(value string) (ret FSStatusType) {
+	switch value {
+	case "Enabled":
+		ret = FSStatusEnabled
+	case "Disabled":
+		ret = FSStatusDisabled
+	default:
+		ret = ""
+	}
 	return
 }

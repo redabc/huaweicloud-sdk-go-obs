@@ -10,7 +10,6 @@
 // CONDITIONS OF ANY KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations under the License.
 
-//nolint:golint, unused
 package obs
 
 import (
@@ -33,6 +32,7 @@ type Bucket struct {
 	Name         string    `xml:"Name"`
 	CreationDate time.Time `xml:"CreationDate"`
 	Location     string    `xml:"Location"`
+	BucketType   string    `xml:"BucketType,omitempty"`
 }
 
 // Owner defines owner properties
@@ -88,6 +88,7 @@ type CreateBucketInput struct {
 	GrantFullControlDeliveredId string           `xml:"-"`
 	Epid                        string           `xml:"-"`
 	AvailableZone               string           `xml:"-"`
+	IsFSFileInterface           bool             `xml:"-"`
 }
 
 // BucketStoragePolicy defines the bucket storage class
@@ -525,6 +526,7 @@ type GetBucketMetadataOutput struct {
 	MaxAgeSeconds int
 	ExposeHeader  string
 	Epid          string
+	FSStatus      FSStatusType
 }
 
 // BucketLoggingStatus defines the bucket logging configuration

@@ -22,12 +22,13 @@ import (
 
 func (obsClient ObsClient) doAuthTemporary(method, bucketName, objectKey string, params map[string]string,
 	headers map[string][]string, expires int64) (requestURL string, err error) {
-	isAkSkEmpty := obsClient.conf.securityProvider == nil || obsClient.conf.securityProvider.ak == "" || obsClient.conf.securityProvider.sk == ""
-	if isAkSkEmpty == false && obsClient.conf.securityProvider.securityToken != "" {
+	sh := obsClient.getSecurity()
+	isAkSkEmpty := sh.ak == "" || sh.sk == ""
+	if isAkSkEmpty == false && sh.securityToken != "" {
 		if obsClient.conf.signature == SignatureObs {
-			params[HEADER_STS_TOKEN_OBS] = obsClient.conf.securityProvider.securityToken
+			params[HEADER_STS_TOKEN_OBS] = sh.securityToken
 		} else {
-			params[HEADER_STS_TOKEN_AMZ] = obsClient.conf.securityProvider.securityToken
+			params[HEADER_STS_TOKEN_AMZ] = sh.securityToken
 		}
 	}
 	requestURL, canonicalizedURL := obsClient.conf.formatUrls(bucketName, objectKey, params, true)
@@ -66,7 +67,7 @@ func (obsClient ObsClient) doAuthTemporary(method, bucketName, objectKey string,
 
 			signedHeaders, _headers := getSignedHeaders(headers)
 
-			credential, scope := getCredential(obsClient.conf.securityProvider.ak, obsClient.conf.region, shortDate)
+			credential, scope := getCredential(sh.ak, obsClient.conf.region, shortDate)
 			params[PARAM_ALGORITHM_AMZ_CAMEL] = V4_HASH_PREFIX
 			params[PARAM_CREDENTIAL_AMZ_CAMEL] = credential
 			params[PARAM_DATE_AMZ_CAMEL] = longDate
@@ -80,7 +81,7 @@ func (obsClient ObsClient) doAuthTemporary(method, bucketName, objectKey string,
 			}
 
 			stringToSign := getV4StringToSign(method, canonicalizedURL, parsedRequestURL.RawQuery, scope, longDate, UNSIGNED_PAYLOAD, signedHeaders, _headers)
-			signature := getSignature(stringToSign, obsClient.conf.securityProvider.sk, obsClient.conf.region, shortDate)
+			signature := getSignature(stringToSign, sh.sk, obsClient.conf.region, shortDate)
 
 			requestURL += fmt.Sprintf("&%s=%s", PARAM_SIGNATURE_AMZ_CAMEL, UrlEncode(signature, false))
 
@@ -95,7 +96,7 @@ func (obsClient ObsClient) doAuthTemporary(method, bucketName, objectKey string,
 			headers[HEADER_DATE_CAMEL] = []string{Int64ToString(expires)}
 
 			stringToSign := getV2StringToSign(method, canonicalizedURL, headers, obsClient.conf.signature == SignatureObs)
-			signature := UrlEncode(Base64Encode(HmacSha1([]byte(obsClient.conf.securityProvider.sk), []byte(stringToSign))), false)
+			signature := UrlEncode(Base64Encode(HmacSha1([]byte(sh.sk), []byte(stringToSign))), false)
 			if strings.Index(requestURL, "?") < 0 {
 				requestURL += "?"
 			} else {
@@ -106,7 +107,7 @@ func (obsClient ObsClient) doAuthTemporary(method, bucketName, objectKey string,
 			if obsClient.conf.signature != SignatureObs {
 				requestURL += "AWS"
 			}
-			requestURL += fmt.Sprintf("AccessKeyId=%s&Expires=%d&Signature=%s", UrlEncode(obsClient.conf.securityProvider.ak, false), expires, signature)
+			requestURL += fmt.Sprintf("AccessKeyId=%s&Expires=%d&Signature=%s", UrlEncode(sh.ak, false), expires, signature)
 		}
 	}
 
@@ -115,12 +116,13 @@ func (obsClient ObsClient) doAuthTemporary(method, bucketName, objectKey string,
 
 func (obsClient ObsClient) doAuth(method, bucketName, objectKey string, params map[string]string,
 	headers map[string][]string, hostName string) (requestURL string, err error) {
-	isAkSkEmpty := obsClient.conf.securityProvider == nil || obsClient.conf.securityProvider.ak == "" || obsClient.conf.securityProvider.sk == ""
-	if isAkSkEmpty == false && obsClient.conf.securityProvider.securityToken != "" {
+	sh := obsClient.getSecurity()
+	isAkSkEmpty := sh.ak == "" || sh.sk == ""
+	if isAkSkEmpty == false && sh.securityToken != "" {
 		if obsClient.conf.signature == SignatureObs {
-			headers[HEADER_STS_TOKEN_OBS] = []string{obsClient.conf.securityProvider.securityToken}
+			headers[HEADER_STS_TOKEN_OBS] = []string{sh.securityToken}
 		} else {
-			headers[HEADER_STS_TOKEN_AMZ] = []string{obsClient.conf.securityProvider.securityToken}
+			headers[HEADER_STS_TOKEN_AMZ] = []string{sh.securityToken}
 		}
 	}
 	isObs := obsClient.conf.signature == SignatureObs
@@ -141,8 +143,8 @@ func (obsClient ObsClient) doAuth(method, bucketName, objectKey string, params m
 	if isAkSkEmpty {
 		doLog(LEVEL_WARN, "No ak/sk provided, skip to construct authorization")
 	} else {
-		ak := obsClient.conf.securityProvider.ak
-		sk := obsClient.conf.securityProvider.sk
+		ak := sh.ak
+		sk := sh.sk
 		var authorization string
 		if isV4 {
 			headers[HEADER_CONTENT_SHA256_AMZ] = []string{UNSIGNED_PAYLOAD}

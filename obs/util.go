@@ -10,7 +10,6 @@
 // CONDITIONS OF ANY KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations under the License.
 
-//nolint:golint, unused
 package obs
 
 import (
@@ -344,7 +343,7 @@ func GetV2Authorization(ak, sk, method, bucketName, objectKey, queryURL string, 
 	}
 	headers = copyHeaders(headers)
 	pathStyle := isPathStyle(headers, bucketName)
-	conf := &config{securityProvider: &securityProvider{ak: ak, sk: sk},
+	conf := &config{securityProviders: []securityProvider{NewBasicSecurityProvider(ak, sk, "")},
 		urlHolder: &urlHolder{scheme: "https", host: "dummy", port: 443},
 		pathStyle: pathStyle}
 	conf.signature = SignatureObs
@@ -409,7 +408,7 @@ func GetAuthorization(ak, sk, method, bucketName, objectKey, queryURL string, he
 	if receviedHost, ok := headers[HEADER_HOST]; ok && len(receviedHost) > 0 && !strings.HasPrefix(receviedHost[0], bucketName+".") {
 		pathStyle = true
 	}
-	conf := &config{securityProvider: &securityProvider{ak: ak, sk: sk},
+	conf := &config{securityProviders: []securityProvider{NewBasicSecurityProvider(ak, sk, "")},
 		urlHolder: &urlHolder{scheme: "https", host: "dummy", port: 443},
 		pathStyle: pathStyle}
 

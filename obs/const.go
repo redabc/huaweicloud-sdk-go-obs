@@ -10,11 +10,10 @@
 // CONDITIONS OF ANY KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations under the License.
 
-//nolint:golint, unused
 package obs
 
 const (
-	obsSdkVersion          = "3.20.9"
+	obsSdkVersion          = "3.20.11"
 	USER_AGENT             = "obs-sdk-go/" + obsSdkVersion
 	HEADER_PREFIX          = "x-amz-"
 	HEADER_PREFIX_META     = "x-amz-meta-"
@@ -105,6 +104,8 @@ const (
 	HEADER_SSEKMS_KEY_OBS = "x-obs-server-side-encryption-kms-key-id"
 
 	HEADER_SUCCESS_ACTION_REDIRECT = "success_action_redirect"
+
+	headerFSFileInterface = "fs-file-interface"
 
 	HEADER_DATE_CAMEL                          = "Date"
 	HEADER_HOST_CAMEL                          = "Host"
@@ -929,4 +930,19 @@ const (
 
 	// FetchStatusClosed type of status: closed
 	FetchStatusClosed FetchPolicyStatusType = "closed"
+)
+
+// AvailableZoneType defines type of az redundancy
+type AvailableZoneType string
+
+const (
+	AvailableZoneMultiAz AvailableZoneType = "3az"
+)
+
+// FSStatusType defines type of file system status
+type FSStatusType string
+
+const (
+	FSStatusEnabled  FSStatusType = "Enabled"
+	FSStatusDisabled FSStatusType = "Disabled"
 )

@@ -10,7 +10,6 @@
 // CONDITIONS OF ANY KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations under the License.
 
-//nolint:golint, unused
 package obs
 
 import (
@@ -28,12 +27,6 @@ import (
 	"time"
 )
 
-type securityProvider struct {
-	ak            string
-	sk            string
-	securityToken string
-}
-
 type urlHolder struct {
 	scheme string
 	host   string
@@ -41,26 +34,28 @@ type urlHolder struct {
 }
 
 type config struct {
-	securityProvider *securityProvider
-	urlHolder        *urlHolder
-	pathStyle        bool
-	cname            bool
-	sslVerify        bool
-	endpoint         string
-	signature        SignatureType
-	region           string
-	connectTimeout   int
-	socketTimeout    int
-	headerTimeout    int
-	idleConnTimeout  int
-	finalTimeout     int
-	maxRetryCount    int
-	proxyURL         string
-	maxConnsPerHost  int
-	pemCerts         []byte
-	transport        *http.Transport
-	ctx              context.Context
-	maxRedirectCount int
+	securityProviders []securityProvider
+	urlHolder         *urlHolder
+	pathStyle         bool
+	cname             bool
+	sslVerify         bool
+	endpoint          string
+	signature         SignatureType
+	region            string
+	connectTimeout    int
+	socketTimeout     int
+	headerTimeout     int
+	idleConnTimeout   int
+	finalTimeout      int
+	maxRetryCount     int
+	proxyURL          string
+	maxConnsPerHost   int
+	pemCerts          []byte
+	transport         *http.Transport
+	ctx               context.Context
+	maxRedirectCount  int
+	userAgent         string
+	enableCompression bool
 }
 
 func (conf config) String() string {
@@ -74,6 +69,16 @@ func (conf config) String() string {
 }
 
 type configurer func(conf *config)
+
+func WithSecurityProviders(sps ...securityProvider) configurer {
+	return func(conf *config) {
+		for _, sp := range sps {
+			if sp != nil {
+				conf.securityProviders = append(conf.securityProviders, sp)
+			}
+		}
+	}
+}
 
 // WithSslVerify is a wrapper for WithSslVerifyAndPemCerts.
 func WithSslVerify(sslVerify bool) configurer {
@@ -164,7 +169,13 @@ func WithMaxRetryCount(maxRetryCount int) configurer {
 // WithSecurityToken is a configurer for ObsClient to set the security token in the temporary access keys.
 func WithSecurityToken(securityToken string) configurer {
 	return func(conf *config) {
-		conf.securityProvider.securityToken = securityToken
+		for _, sp := range conf.securityProviders {
+			if bsp, ok := sp.(*BasicSecurityProvider); ok {
+				sh := bsp.getSecurity()
+				bsp.refresh(sh.ak, sh.sk, securityToken)
+				break
+			}
+		}
 	}
 }
 
@@ -193,6 +204,20 @@ func WithCustomDomainName(cname bool) configurer {
 func WithMaxRedirectCount(maxRedirectCount int) configurer {
 	return func(conf *config) {
 		conf.maxRedirectCount = maxRedirectCount
+	}
+}
+
+// WithUserAgent is a configurer for ObsClient to set the User-Agent.
+func WithUserAgent(userAgent string) configurer {
+	return func(conf *config) {
+		conf.userAgent = userAgent
+	}
+}
+
+// WithEnableCompression is a configurer for ObsClient to set the Transport.DisableCompression.
+func WithEnableCompression(enableCompression bool) configurer {
+	return func(conf *config) {
+		conf.enableCompression = enableCompression
 	}
 }
 
@@ -229,9 +254,6 @@ func (conf *config) prepareConfig() {
 }
 
 func (conf *config) initConfigWithDefault() error {
-	conf.securityProvider.ak = strings.TrimSpace(conf.securityProvider.ak)
-	conf.securityProvider.sk = strings.TrimSpace(conf.securityProvider.sk)
-	conf.securityProvider.securityToken = strings.TrimSpace(conf.securityProvider.securityToken)
 	conf.endpoint = strings.TrimSpace(conf.endpoint)
 	if conf.endpoint == "" {
 		return errors.New("endpoint is not set")
@@ -325,7 +347,7 @@ func (conf *config) getTransport() error {
 		}
 
 		conf.transport.TLSClientConfig = tlsConfig
-		conf.transport.DisableCompression = true
+		conf.transport.DisableCompression = !conf.enableCompression
 	}
 
 	return nil

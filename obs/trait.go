@@ -11,7 +11,6 @@
 // specific language governing permissions and limitations under the License.
 
 //nolint:structcheck, unused
-//nolint:golint, unused
 package obs
 
 import (
@@ -153,6 +152,10 @@ func (input CreateBucketInput) trans(isObs bool) (params map[string]string, head
 	}
 
 	input.prepareGrantHeaders(headers, isObs)
+	if input.IsFSFileInterface {
+		setHeaders(headers, headerFSFileInterface, []string{"Enabled"}, true)
+	}
+
 	if location := strings.TrimSpace(input.Location); location != "" {
 		input.Location = location
 

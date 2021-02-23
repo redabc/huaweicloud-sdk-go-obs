@@ -10,7 +10,6 @@
 // CONDITIONS OF ANY KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations under the License.
 
-//nolint:golint, unused
 package obs
 
 import (
@@ -59,12 +58,12 @@ func (obsClient ObsClient) CreateSignedUrl(input *CreateSignedUrlInput) (output 
 	return
 }
 
-func (obsClient ObsClient) isSecurityToken(params map[string]string) {
-	if obsClient.conf.securityProvider.securityToken != "" {
+func (obsClient ObsClient) isSecurityToken(params map[string]string, sh securityHolder) {
+	if sh.securityToken != "" {
 		if obsClient.conf.signature == SignatureObs {
-			params[HEADER_STS_TOKEN_OBS] = obsClient.conf.securityProvider.securityToken
+			params[HEADER_STS_TOKEN_OBS] = sh.securityToken
 		} else {
-			params[HEADER_STS_TOKEN_AMZ] = obsClient.conf.securityProvider.securityToken
+			params[HEADER_STS_TOKEN_AMZ] = sh.securityToken
 		}
 	}
 }
@@ -84,8 +83,9 @@ func (obsClient ObsClient) CreateBrowserBasedSignature(input *CreateBrowserBased
 	date := time.Now().UTC()
 	shortDate := date.Format(SHORT_DATE_FORMAT)
 	longDate := date.Format(LONG_DATE_FORMAT)
+	sh := obsClient.getSecurity()
 
-	credential, _ := getCredential(obsClient.conf.securityProvider.ak, obsClient.conf.region, shortDate)
+	credential, _ := getCredential(sh.ak, obsClient.conf.region, shortDate)
 
 	if input.Expires <= 0 {
 		input.Expires = 300
@@ -98,7 +98,7 @@ func (obsClient ObsClient) CreateBrowserBasedSignature(input *CreateBrowserBased
 		params[PARAM_DATE_AMZ_CAMEL] = longDate
 	}
 
-	obsClient.isSecurityToken(params)
+	obsClient.isSecurityToken(params, sh)
 
 	matchAnyBucket := true
 	matchAnyKey := true
@@ -138,9 +138,9 @@ func (obsClient ObsClient) CreateBrowserBasedSignature(input *CreateBrowserBased
 	policy := Base64Encode([]byte(originPolicy))
 	var signature string
 	if obsClient.conf.signature == SignatureV4 {
-		signature = getSignature(policy, obsClient.conf.securityProvider.sk, obsClient.conf.region, shortDate)
+		signature = getSignature(policy, sh.sk, obsClient.conf.region, shortDate)
 	} else {
-		signature = Base64Encode(HmacSha1([]byte(obsClient.conf.securityProvider.sk), []byte(policy)))
+		signature = Base64Encode(HmacSha1([]byte(sh.sk), []byte(policy)))
 	}
 
 	output = &CreateBrowserBasedSignatureOutput{
